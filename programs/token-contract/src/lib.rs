@@ -91,25 +91,65 @@ pub mod token_contract {
 
         let amount: u64 = (rounds_claim - ctx.accounts.store.rounds_passed) * ctx.accounts.store.tokens_per_period;
 
-        let cpi_accounts = MintTo {
-            mint: ctx.accounts.mint.mint.to_account_info(),
-            to: ctx.accounts.mint.token_account.to_account_info(),
-            authority: ctx.accounts.mint.authority.to_account_info(),
+        let transfer_instruction = Transfer{
+            from: ctx.accounts.transfer.from.to_account_info(),
+            to: ctx.accounts.transfer.to.to_account_info(),
+            authority: ctx.accounts.transfer.from_authority.to_account_info(),
         };
-        
-        let cpi_program = ctx.accounts.mint.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+         
+        let cpi_program = ctx.accounts.transfer.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, transfer_instruction);
 
-        token::mint_to(cpi_ctx, amount)?;
+        anchor_spl::token::transfer(cpi_ctx, amount)?;
 
         Ok({ 
-            ctx.accounts.store.staked_count = amount;
+            ctx.accounts.store.staked_count = ctx.accounts.store.staked_count;
             ctx.accounts.store.max_staked_amount = 10_000;
             ctx.accounts.store.time_start = ctx.accounts.store.time_start; 
             ctx.accounts.store.rounds_amount = 24;
             ctx.accounts.store.rounds_time = 7 * DAYS;
             ctx.accounts.store.tokens_per_period = 70;
             ctx.accounts.store.rounds_passed = rounds_claim;
+        })
+    }
+
+    pub fn exit(ctx: Context<Exit>) -> Result<()>  {
+        const DAYS: i64 = 60 * 60 * 24;
+
+        if ctx.accounts.store.staked_count <= 0 {
+            return Err(ErrorCode::NothingStaked.into());
+        }
+
+        let mut amount: u64 = 0;
+
+        let rounds_claim: u64 = ((ctx.accounts.clock.unix_timestamp - ctx.accounts.store.time_start) / ctx.accounts.store.rounds_time).try_into().unwrap();
+        if rounds_claim == 0 ||
+           ctx.accounts.store.rounds_passed == rounds_claim ||
+           ctx.accounts.store.rounds_passed <= ctx.accounts.store.rounds_amount {
+            amount += ctx.accounts.store.staked_count;
+        } else {
+            amount += (rounds_claim - ctx.accounts.store.rounds_passed) * ctx.accounts.store.tokens_per_period;
+        }
+
+        let transfer_instruction = Transfer{
+            from: ctx.accounts.transfer.from.to_account_info(),
+            to: ctx.accounts.transfer.to.to_account_info(),
+            authority: ctx.accounts.transfer.from_authority.to_account_info(),
+        };
+         
+        let cpi_program = ctx.accounts.transfer.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, transfer_instruction);
+
+        anchor_spl::token::transfer(cpi_ctx, amount)?;
+
+        Ok({ 
+            ctx.accounts.store.staked_count = 0;
+            ctx.accounts.store.max_staked_amount = 10_000;
+            ctx.accounts.store.time_start = ctx.accounts.store.time_start; 
+            ctx.accounts.store.rounds_amount = 24;
+            ctx.accounts.store.rounds_time = 7 * DAYS;
+            ctx.accounts.store.tokens_per_period = 70;
+            ctx.accounts.store.rounds_passed = ctx.accounts.store.rounds_amount;
         })
     }
 
@@ -152,6 +192,15 @@ pub struct Stake<'info> {
 
 #[derive(Accounts)]
 pub struct Claim<'info> {
+    pub transfer: TransferToken<'info>,
+    pub clock: Sysvar<'info, Clock>,
+    #[account(zero)]
+    pub store: Account<'info, StakeStore>,
+}
+
+#[derive(Accounts)]
+pub struct Exit<'info> {
+    pub transfer: TransferToken<'info>,
     pub mint: MintToken<'info>,
     pub clock: Sysvar<'info, Clock>,
     #[account(zero)]
