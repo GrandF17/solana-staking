@@ -1,5 +1,5 @@
 import * as anchor from "@project-serum/anchor";
-import { Program } from "@project-serum/anchor";
+import { Program, BN } from "@project-serum/anchor";
 import { TokenContract } from "../target/types/token_contract";
 import {
   TOKEN_PROGRAM_ID,
@@ -66,7 +66,7 @@ describe("token-contract", () => {
     console.log("User: ", key.toString());
 
     // Executes our code to mint our token into our specified ATA
-    await program.methods.mintToken().accounts({
+    await program.methods.mintToken(new BN(10_000_000_000)).accounts({
       mint: mintKey.publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
       tokenAccount: associatedTokenAccount,
@@ -75,7 +75,7 @@ describe("token-contract", () => {
 
     // Get minted token amount on the ATA for our anchor wallet
     const minted = (await program.provider.connection.getParsedAccountInfo(associatedTokenAccount)).value.data.parsed.info.tokenAmount.amount;
-    assert.equal(minted, 10);
+    assert.equal(minted, 10_000_000_000);
   });
 
   it("Transfer token", async () => {
@@ -101,7 +101,7 @@ describe("token-contract", () => {
     await anchor.AnchorProvider.env().sendAndConfirm(mint_tx, []);
 
     // Executes our transfer smart contract 
-    await program.methods.transferToken().accounts({
+    await program.methods.transferToken(new BN(5)).accounts({
       tokenProgram: TOKEN_PROGRAM_ID,
       from: associatedTokenAccount,
       fromAuthority: myWallet,
@@ -110,6 +110,6 @@ describe("token-contract", () => {
 
     // Get minted token amount on the ATA for our anchor wallet
     const minted = (await program.provider.connection.getParsedAccountInfo(associatedTokenAccount)).value.data.parsed.info.tokenAmount.amount;
-    assert.equal(minted, 5);
+    assert.equal(minted, new BN(9_999_999_995));
   });
 });

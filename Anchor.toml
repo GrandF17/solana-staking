@@ -1,14 +1,14 @@
 [features]
 seeds = false
 [programs.localnet]
-token_contract = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+token_contract = "EUKCTHaPV7PyuGfFhxQG8WbEu1YK8gnuCZcAUZm25rbm"
 
 [registry]
 url = "https://anchor.projectserum.com"
 
 [provider]
 cluster = "localnet"
-wallet = "/home/cardano/.config/solana/id.json"
+wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
