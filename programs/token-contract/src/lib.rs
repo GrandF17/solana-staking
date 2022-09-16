@@ -49,11 +49,16 @@ pub mod token_contract {
     pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()>  {
         const DAYS: i64 = 60 * 60 * 24;
 
-        if ctx.accounts.store.staked_count > 0 {
-            return Err(ErrorCode::AlreadyStaked.into());
-        }
-
-        let transfer_instruction = Transfer{
+        require!(
+            ctx.accounts.store.staked_count > 0,
+            AlreadyStaked
+        );
+        require!(
+            amount > ctx.accounts.store.max_staked_amount,
+            ToManyTokensStake
+        );
+        
+        let transfer_instruction = Transfer {
             from: ctx.accounts.transfer.from.to_account_info(),
             to: ctx.accounts.transfer.to.to_account_info(),
             authority: ctx.accounts.transfer.from_authority.to_account_info(),
@@ -78,16 +83,19 @@ pub mod token_contract {
     pub fn claim(ctx: Context<Claim>) -> Result<()>  {
         const DAYS: i64 = 60 * 60 * 24;
 
-        if ctx.accounts.store.staked_count <= 0 {
-            return Err(ErrorCode::NothingStaked.into());
-        }
+        require!(
+            ctx.accounts.store.staked_count <= 0,
+            NothingStaked
+        );
 
         let rounds_claim: u64 = ((ctx.accounts.clock.unix_timestamp - ctx.accounts.store.time_start) / ctx.accounts.store.rounds_time).try_into().unwrap();
-        if rounds_claim == 0 ||
-           ctx.accounts.store.rounds_passed == rounds_claim ||
-           ctx.accounts.store.rounds_passed <= ctx.accounts.store.rounds_amount {
-            return Err(ErrorCode::NothingToClaim.into());
-        }
+        
+        require!(
+            rounds_claim == 0 ||
+            ctx.accounts.store.rounds_passed == rounds_claim ||
+            ctx.accounts.store.rounds_passed <= ctx.accounts.store.rounds_amount,
+            NothingToClaim
+        );
 
         let amount: u64 = (rounds_claim - ctx.accounts.store.rounds_passed) * ctx.accounts.store.tokens_per_period;
 
@@ -116,9 +124,10 @@ pub mod token_contract {
     pub fn exit(ctx: Context<Exit>) -> Result<()>  {
         const DAYS: i64 = 60 * 60 * 24;
 
-        if ctx.accounts.store.staked_count <= 0 {
-            return Err(ErrorCode::NothingStaked.into());
-        }
+        require!(
+            ctx.accounts.store.staked_count <= 0,
+            NothingStaked
+        );
 
         let mut amount: u64 = 0;
 
@@ -230,4 +239,6 @@ pub enum ErrorCode {
     NothingStaked,
     #[msg("Nothing to claim yet")]
     NothingToClaim,
+    #[msg("Max amount of tokens to stake is: 10.000")]
+    ToManyTokensStake,
 }
