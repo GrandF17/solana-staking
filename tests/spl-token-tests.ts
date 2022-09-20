@@ -2,12 +2,6 @@ import * as anchor from "@project-serum/anchor";
 import { Program, BN } from "@project-serum/anchor";
 import { TokenContract } from "../target/types/token_contract";
 import {
-  TOKEN_PROGRAM_ID,
-  MINT_SIZE,
-  createAssociatedTokenAccountInstruction,
-  getAssociatedTokenAddress,
-  createInitializeMintInstruction,
-  getMint,
   createMint,
   getOrCreateAssociatedTokenAccount,
   mintTo,
